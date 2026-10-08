@@ -1,7 +1,9 @@
 #!/bin/bash
 
+cd /MusicPlayer
+
 echo ">> INSTALLING REQUIREMENTS..."
-pip3 install -U -r "$(pwd)/requirements.txt"
+pip3 install -U -r requirements.txt
 
 echo ">> STARTING MUSIC PLAYER..."
 echo ""
@@ -11,4 +13,4 @@ echo "        SUCCESSFULLY DEPLOYED!"
 echo "========================================"
 echo ""
 
-python3 "$(pwd)/main.py"
+python3 main.py
