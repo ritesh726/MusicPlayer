@@ -49,38 +49,69 @@ class Song:
                 setattr(self, key, value)
             self.request_msg: Message = request_msg
             self.requested_by: User = request_msg.from_user
-
+            
     async def parse(self) -> Tuple[bool, str]:
         if self.parsed:
             return (True, "ALREADY_PARSED")
+
         if self._retries >= 5:
             return (False, "MAX_RETRY_LIMIT_REACHED")
+
         process = await asyncio.create_subprocess_shell(
-            f"yt-dlp --print-json --skip-download -f best {quote(self.source)}",
+            f"yt-dlp --js-runtimes deno --print-json --skip-download -f best {quote(self.source)}",
             stdout=PIPE,
             stderr=PIPE,
         )
-        out, _ = await process.communicate()
+
+        out, err = await process.communicate()
+
+        if process.returncode != 0:
+            error = err.decode(errors="ignore").strip()
+            self._retries += 1
+
+            if self._retries >= 5:
+                return (False, f"YTDLP_ERROR: {error[-1500:]}")
+
+            return await self.parse()
+
         try:
             video = json.loads(out.decode())
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             self._retries += 1
+
+            if self._retries >= 5:
+                error = err.decode(errors="ignore").strip()
+                return (False, f"YTDLP_JSON_ERROR: {error[-1500:]}")
+
             return await self.parse()
-        check_remote = await self.check_remote_url(video["url"], video["http_headers"])
-        check_thumb = await self.check_remote_url(
-            video["thumbnail"], video["http_headers"]
-        )
-        if check_remote and check_thumb:
-            self.title = self._escape(video["title"])
-            self.duration = str(timedelta(seconds=video["duration"]))
-            self.thumb = video["thumbnail"]
-            self.remote = video["url"]
-            self.headers = video["http_headers"]
-            self.parsed = True
-            return (True, "PARSED")
-        else:
-            self._retries += 1
-            return await self.parse()
+
+        try:
+            check_remote = await self.check_remote_url(
+                video["url"], video["http_headers"]
+            )
+
+            check_thumb = await self.check_remote_url(
+                video["thumbnail"], video["http_headers"]
+            )
+
+            if check_remote and check_thumb:
+                self.title = self._escape(video["title"])
+                self.duration = str(timedelta(seconds=video["duration"]))
+                self.thumb = video["thumbnail"]
+                self.remote = video["url"]
+                self.headers = video["http_headers"]
+                self.parsed = True
+                return (True, "PARSED")
+
+        except (KeyError, TypeError):
+            pass
+
+        self._retries += 1
+
+        if self._retries >= 5:
+            return (False, "YTDLP_ERROR: Invalid YouTube response")
+
+        return await self.parse()
 
     @staticmethod
     async def check_remote_url(
