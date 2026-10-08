@@ -96,15 +96,16 @@ class Song:
             return await self.parse()
 
         try:
-            check_remote = await self.check_remote_url(
-                video["url"], video["http_headers"]
-            )
-
-            check_thumb = await self.check_remote_url(
-                video["thumbnail"], video["http_headers"]
-            )
-
-            if check_remote and check_thumb:
+# YouTube media URLs are temporary/signed URLs and may reject
+# a separate request even though yt-dlp extracted them successfully.
+if video.get("url") and video.get("title") and video.get("http_headers"):
+    self.title = self._escape(video["title"])
+    self.duration = str(timedelta(seconds=video.get("duration", 0)))
+    self.thumb = video.get("thumbnail")
+    self.remote = video["url"]
+    self.headers = video["http_headers"]
+    self.parsed = True
+    return (True, "PARSED")
                 self.title = self._escape(video["title"])
                 self.duration = str(timedelta(seconds=video["duration"]))
                 self.thumb = video["thumbnail"]
