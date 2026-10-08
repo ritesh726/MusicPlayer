@@ -96,19 +96,14 @@ class Song:
             return await self.parse()
 
         try:
-# YouTube media URLs are temporary/signed URLs and may reject
-# a separate request even though yt-dlp extracted them successfully.
-if video.get("url") and video.get("title") and video.get("http_headers"):
-    self.title = self._escape(video["title"])
-    self.duration = str(timedelta(seconds=video.get("duration", 0)))
-    self.thumb = video.get("thumbnail")
-    self.remote = video["url"]
-    self.headers = video["http_headers"]
-    self.parsed = True
-    return (True, "PARSED")
+            if (
+                video.get("url")
+                and video.get("title")
+                and video.get("http_headers")
+            ):
                 self.title = self._escape(video["title"])
-                self.duration = str(timedelta(seconds=video["duration"]))
-                self.thumb = video["thumbnail"]
+                self.duration = str(timedelta(seconds=video.get("duration", 0)))
+                self.thumb = video.get("thumbnail")
                 self.remote = video["url"]
                 self.headers = video["http_headers"]
                 self.parsed = True
