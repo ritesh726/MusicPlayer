@@ -16,7 +16,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>
 """
 
-from core.song import Song
 from core.admins import is_sudo, is_admin
 from core.stream import app, ytdl, safone, pytgcalls, start_stream
 from core.groups import (
