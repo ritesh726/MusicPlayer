@@ -46,6 +46,7 @@ app = Client(
 )
 ytdl = YoutubeDL(ydl_opts)
 pytgcalls = PyTgCalls(app)
+
 async def ensure_assistant_joined(message):
     chat = message.chat
 
