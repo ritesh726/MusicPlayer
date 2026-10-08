@@ -113,15 +113,20 @@ async def search(message: Message) -> Optional[Song]:
 
 
 def check_yt_url(text: str) -> Tuple[bool, Optional[str]]:
+    text = text.strip()
+
     pattern = re.compile(
-        "^((?:https?:)?\\/\\/)?((?:www|m)\\.)?((?:youtube\\.com|youtu.be))(\\/(?:[\\w\\-]+\\?v=|embed\\/|v\\/)?)([\\w\\-]+)([a-zA-Z0-9-_]+)?$"
+        r"^(?:https?://)?(?:www\.|m\.)?(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/v/)([\w-]+)",
+        re.IGNORECASE,
     )
-    matches = re.findall(pattern, text)
-    if len(matches) <= 0:
+
+    match = pattern.search(text)
+
+    if not match:
         return False, None
 
-    match = "".join(list(matches[0]))
-    return True, match
+    video_id = match.group(1)
+    return True, f"https://www.youtube.com/watch?v={video_id}"
 
 
 def extract_args(text: str) -> str:
