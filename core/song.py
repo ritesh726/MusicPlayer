@@ -58,8 +58,7 @@ class Song:
 
         if self._retries >= 5:
             return (False, "MAX_RETRY_LIMIT_REACHED")
-
-                cookie_b64 = os.getenv("YOUTUBE_COOKIES_B64")
+        cookie_b64 = os.getenv("YOUTUBE_COOKIES_B64")
         cookie_path = "/tmp/youtube_cookies.txt"
 
         if cookie_b64:
