@@ -68,7 +68,7 @@ class Song:
         cookie_arg = f' --cookies "{cookie_path}"' if cookie_b64 else ""
 
         process = await asyncio.create_subprocess_shell(
-            f"yt-dlp --js-runtimes deno{cookie_arg} --print-json --skip-download -f best {quote(self.source)}",
+            f"yt-dlp --js-runtimes deno{cookie_arg} --print-json --skip-download -f bestaudio/best {quote(self.source)}",
             stdout=PIPE,
             stderr=PIPE,
         )
