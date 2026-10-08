@@ -46,23 +46,103 @@ app = Client(
 )
 ytdl = YoutubeDL(ydl_opts)
 pytgcalls = PyTgCalls(app)
+async def ensure_assistant_joined(message):
+    chat = message.chat
+
+    # Already joined / peer available
+    try:
+        await app.resolve_peer(chat.id)
+        return
+    except Exception:
+        pass
+
+    # Public group
+    username = getattr(chat, "username", None)
+
+    if username:
+        try:
+            await app.join_chat(f"@{username}")
+            await app.resolve_peer(chat.id)
+            print(f"[ASSISTANT] Joined public chat: {chat.id}")
+            return
+        except Exception as e:
+            print(
+                f"[ASSISTANT] Public join failed: "
+                f"{type(e).__name__}: {e}"
+            )
+
+    # Private group: get invite link using the bot
+    bot_client = getattr(message, "_client", None)
+
+    if bot_client:
+        invite_link = None
+
+        try:
+            bot_chat = await bot_client.get_chat(chat.id)
+            invite_link = getattr(bot_chat, "invite_link", None)
+        except Exception:
+            pass
+
+        if not invite_link:
+            try:
+                invite_link = await bot_client.export_chat_invite_link(
+                    chat.id
+                )
+            except Exception as e:
+                print(
+                    f"[ASSISTANT] Invite link error: "
+                    f"{type(e).__name__}: {e}"
+                )
+
+        if invite_link:
+            try:
+                await app.join_chat(invite_link)
+                await app.resolve_peer(chat.id)
+
+                print(f"[ASSISTANT] Joined private chat: {chat.id}")
+                return
+
+            except Exception as e:
+                # Maybe already joined; check once more
+                try:
+                    await app.resolve_peer(chat.id)
+                    return
+                except Exception:
+                    print(
+                        f"[ASSISTANT] Invite join failed: "
+                        f"{type(e).__name__}: {e}"
+                    )
+
+    raise RuntimeError(
+        f"Assistant cannot access chat {chat.id}. "
+        "Bot must be admin and able to create an invite link."
+    )
 
 
 async def start_stream(song: Song, lang):
     chat = song.request_msg.chat
+
     if safone.get(chat.id) is not None:
         try:
             await safone[chat.id].delete()
         except BaseException:
             pass
-    infomsg = await song.request_msg.reply_text(lang["downloading"])
+
+    infomsg = await song.request_msg.reply_text(
+        lang["downloading"]
+    )
+
+    # Automatically make sure SESSION assistant can access the group
+    await ensure_assistant_joined(song.request_msg)
+
     try:
         await pytgcalls.play(
             chat.id,
             get_quality(song),
         )
-    except (NoActiveGroupCall):
+    except NoActiveGroupCall:
         peer = await app.resolve_peer(chat.id)
+
         await app.invoke(
             CreateGroupCall(
                 peer=InputPeerChannel(
@@ -72,14 +152,18 @@ async def start_stream(song: Song, lang):
                 random_id=app.rnd_id() // 9000000000,
             )
         )
+
         return await start_stream(song, lang)
+
     await set_title(chat.id, song.title, client=app)
+
     thumb = await generate_cover(
         song.title,
         chat.title,
         chat.id,
         song.thumb,
     )
+
     safone[chat.id] = await song.request_msg.reply_photo(
         photo=thumb,
         caption=lang["playing"]
@@ -96,10 +180,11 @@ async def start_stream(song: Song, lang):
         ),
         quote=False,
     )
+
     await infomsg.delete()
+
     if os.path.exists(thumb):
         os.remove(thumb)
-
 
 def get_quality(song: Song) -> MediaStream:
     group = get_group(song.request_msg.chat.id)
