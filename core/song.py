@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 import json
 import asyncio
+import os
+import base64
 from shlex import quote
 from subprocess import PIPE
 from datetime import timedelta
@@ -57,11 +59,20 @@ class Song:
         if self._retries >= 5:
             return (False, "MAX_RETRY_LIMIT_REACHED")
 
-        process = await asyncio.create_subprocess_shell(
-            f"yt-dlp --js-runtimes deno --print-json --skip-download -f best {quote(self.source)}",
-            stdout=PIPE,
-            stderr=PIPE,
-        )
+        cookie_b64 = os.getenv("YOUTUBE_COOKIES_B64")
+cookie_path = "/tmp/youtube_cookies.txt"
+
+if cookie_b64:
+    with open(cookie_path, "wb") as f:
+        f.write(base64.b64decode(cookie_b64))
+
+cookie_arg = f' --cookies "{cookie_path}"' if cookie_b64 else ""
+
+process = await asyncio.create_subprocess_shell(
+    f"yt-dlp --js-runtimes deno{cookie_arg} --print-json --skip-download -f best {quote(self.source)}",
+    stdout=PIPE,
+    stderr=PIPE,
+)
 
         out, err = await process.communicate()
 
